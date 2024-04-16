@@ -7,6 +7,7 @@ import {
 } from "../../constants";
 
 interface FetchResponse {
+  Information: string;
   "Meta Data": {
     "2. Symbol": string;
     "3. Last Refreshed": string;
@@ -25,6 +26,7 @@ interface FetchResponse {
 type StockData = {
   symbol: string;
   lastRefreshed: Date;
+  latestPrice: StockPrice;
   stockPricesByTime: StockPrice[];
 };
 
@@ -47,10 +49,14 @@ export default async function Page({
   );
 
   if (!res.ok) {
-    throw new Error("Failed to fetch data");
+    throw new Error("Failed to fetch data.");
   }
 
   const fetchResponse: FetchResponse = await res.json();
+
+  if (Object.keys(fetchResponse.Information.length)) {
+    throw new Error("Failed to fetch data due to API request limitation.");
+  }
 
   const timestampKeys = Object.keys(fetchResponse["Time Series (5min)"]);
   const stockPrices: StockPrice[] = [];
@@ -67,26 +73,41 @@ export default async function Page({
     });
   });
 
-  const stockData: StockData = {
+  let stockData: StockData = {
     symbol: fetchResponse["Meta Data"]["2. Symbol"],
     lastRefreshed: new Date(fetchResponse["Meta Data"]["3. Last Refreshed"]),
+    latestPrice: stockPrices[0],
     stockPricesByTime: stockPrices,
   };
+
   return (
     <main>
-      <p>{stockData.symbol}</p>
-      <p>{stockData.lastRefreshed.toDateString()}</p>
-      <ul>
-        {stockData.stockPricesByTime.map((price) => (
-          <div key={price.dateTime.getMilliseconds()}>
-            <li>time: {price.dateTime.toTimeString()}</li>
-            <li>closing price: ${price.close}</li>
-            <li>highest price: ${price.high}</li>
-            <li>lowest price: ${price.low}</li>
-            <li>volume: {price.volume}</li>
+      <h1 className="text-thd-color-violet-90 thd-max-xl thd-heading-lg mb-md">
+        {stockData.symbol}
+      </h1>
+      <div className="text-slate-500">
+        {stockData.lastRefreshed.toDateString()}
+      </div>
+      <div key={stockData.latestPrice.dateTime.getMilliseconds()}>
+        <div>
+          <div className="text-slate-500">closing price: </div>
+          <div className="text-xl font-medium">
+            ${stockData.latestPrice.close}
           </div>
-        ))}
-      </ul>
+          <div className="text-slate-500">highest price: </div>
+          <div className="text-xl font-medium">
+            ${stockData.latestPrice.high}
+          </div>
+          <div className="text-slate-500">lowest price: </div>
+          <div className="text-xl font-medium">
+            ${stockData.latestPrice.low}
+          </div>
+          <div className="text-slate-500">volume: </div>
+          <div className="text-xl font-medium">
+            {stockData.latestPrice.volume}
+          </div>
+        </div>
+      </div>
     </main>
   );
 }

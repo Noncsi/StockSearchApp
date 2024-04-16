@@ -3,7 +3,7 @@ import React, { Fragment, useEffect, useState } from "react";
 import Papa from "papaparse";
 import { Combobox, Transition } from "@headlessui/react";
 import { CheckIcon, ChevronUpDownIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export type Stock = {
   assetType: string;
@@ -41,6 +41,8 @@ export default function AutoComplete() {
   const [selectedItem, setSelectedItem] = useState<Stock | null>(null);
   const [filteredItems, setFilteredItems] = useState<Stock[]>([]);
 
+  const router = useRouter();
+
   useEffect(() => {
     const asyncFetch = async () => {
       const it = streamingFetch("/api");
@@ -66,7 +68,7 @@ export default function AutoComplete() {
         // clean
         (item: Stock) =>
           item.symbol.toLowerCase().includes(input.toLowerCase()) ||
-          item.name.toLowerCase().includes(input.toLowerCase())
+          item.name?.toLowerCase().includes(input.toLowerCase())
       )
       .slice(0, 100);
 
@@ -75,7 +77,9 @@ export default function AutoComplete() {
     console.log("stocks", stocks);
   };
 
-  const onclick = () => {};
+  const navigateToDetail = (symbol: string) => {
+    router.push(`/detail/${symbol}`);
+  };
 
   return (
     <div className="fixed top-16 w-72">
@@ -108,7 +112,7 @@ export default function AutoComplete() {
               ) : (
                 filteredItems.map((stock: Stock) => (
                   <Combobox.Option
-                    onClick={onclick}
+                    onClick={() => navigateToDetail(stock.symbol)}
                     key={stock.symbol}
                     className={({ active }) =>
                       `relative cursor-default select-none py-2 pl-10 pr-4 ${
