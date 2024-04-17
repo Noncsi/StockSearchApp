@@ -6,6 +6,7 @@ import {
   QUERY_INTERVAL,
 } from "../../constants";
 import { StockPrice, StockData } from "@/app/customTypes";
+import LabelValuePairComponent from "@/app/components/labelValuePairComponent";
 
 interface FetchResponse {
   Information: string;
@@ -47,11 +48,11 @@ const mockFetchData = {
 };
 
 export default async function Page({
-  params: { symbol },
+  params: { stockSymbol },
 }: {
-  params: { symbol: string };
+  params: { stockSymbol: string };
 }) {
-  const url = `${API_BASE_URL}/query?function=${QUERY_FUNCTION_TIME_SERIES}&symbol=${symbol}&interval=${QUERY_INTERVAL}&apikey=${QUERY_API_KEY}`;
+  const url = `${API_BASE_URL}/query?function=${QUERY_FUNCTION_TIME_SERIES}&symbol=${stockSymbol}&interval=${QUERY_INTERVAL}&apikey=${QUERY_API_KEY}`;
   const response = await fetch(url, { cache: "force-cache" });
 
   if (!response.ok) {
@@ -65,24 +66,25 @@ export default async function Page({
     fetchResponse = mockFetchData;
   }
 
-  const timestampKeys = Object.keys(fetchResponse["Time Series (5min)"]);
-  const stockPrices: StockPrice[] = [];
-  timestampKeys.forEach((timeStamp) => {
-    stockPrices.push({
-      dateTime: new Date(timeStamp),
-      open: Number(fetchResponse["Time Series (5min)"][timeStamp]["1. open"]),
-      high: Number(fetchResponse["Time Series (5min)"][timeStamp]["2. high"]),
-      low: Number(fetchResponse["Time Series (5min)"][timeStamp]["3. low"]),
-      close: Number(fetchResponse["Time Series (5min)"][timeStamp]["4. close"]),
-      volume: Number(
-        fetchResponse["Time Series (5min)"][timeStamp]["5. volume"]
-      ),
-    });
-  });
+  const timeSeries = fetchResponse["Time Series (5min)"];
+  const timestampKeys = Object.keys(timeSeries);
 
-  let stockData: StockData = {
-    symbol: fetchResponse["Meta Data"]["2. Symbol"],
-    lastRefreshed: new Date(fetchResponse["Meta Data"]["3. Last Refreshed"]),
+  const stockPrices: StockPrice[] = timestampKeys.map((timestamp) => ({
+    dateTime: new Date(timestamp),
+    open: Number(timeSeries[timestamp]["1. open"]),
+    high: Number(timeSeries[timestamp]["2. high"]),
+    low: Number(timeSeries[timestamp]["3. low"]),
+    close: Number(timeSeries[timestamp]["4. close"]),
+    volume: Number(timeSeries[timestamp]["5. volume"]),
+  }));
+
+  const meta = fetchResponse["Meta Data"];
+  const symbol = meta["2. Symbol"];
+  const lastRefreshed = new Date(meta["3. Last Refreshed"]);
+
+  const stockData: StockData = {
+    symbol,
+    lastRefreshed,
     latestPrice: stockPrices[0],
     stockPricesByTime: stockPrices,
   };
@@ -98,34 +100,27 @@ export default async function Page({
             {stockData.lastRefreshed.toDateString()}
           </div>
         </div>
-        <div
-          key={stockData.latestPrice.dateTime.getMilliseconds()}
-          className="flex flex-row flex-wrap justify-center gap-6"
-        >
-          <div>
-            <div className="text-slate-500">Closing price</div>
-            <div className="text-xl font-medium">
-              ${stockData.latestPrice.close}
-            </div>
-          </div>
-          <div>
-            <div className="text-slate-500">Highest price</div>
-            <div className="text-xl font-medium">
-              ${stockData.latestPrice.high}
-            </div>
-          </div>
-          <div>
-            <div className="text-slate-500">Lowest price</div>
-            <div className="text-xl font-medium">
-              ${stockData.latestPrice.low}
-            </div>
-          </div>
-          <div>
-            <div className="text-slate-500">Volume</div>
-            <div className="text-xl font-medium">
-              {stockData.latestPrice.volume}
-            </div>
-          </div>
+
+        <div className="flex flex-row flex-wrap justify-center gap-6">
+          <LabelValuePairComponent
+            label={"Closing price"}
+            value={stockData.latestPrice.close.toString()}
+            isPrice={true}
+          ></LabelValuePairComponent>
+          <LabelValuePairComponent
+            label={"Highest price"}
+            value={stockData.latestPrice.high.toString()}
+            isPrice={true}
+          ></LabelValuePairComponent>
+          <LabelValuePairComponent
+            label={"Lowest price"}
+            value={stockData.latestPrice.low.toString()}
+            isPrice={true}
+          ></LabelValuePairComponent>
+          <LabelValuePairComponent
+            label={"Volume"}
+            value={stockData.latestPrice.close.toString()}
+          ></LabelValuePairComponent>
         </div>
       </div>
     </div>
