@@ -61,7 +61,7 @@ export default async function Page({
 
   let fetchResponse: FetchResponse = await response.json();
 
-  if (Object.keys(fetchResponse.Information.length)) {
+  if (fetchResponse.Information.length > 0) {
     console.error("Failed to fetch data due to API request limitation.");
     fetchResponse = mockFetchData;
   }
