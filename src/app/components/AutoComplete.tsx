@@ -4,92 +4,81 @@ import Papa from "papaparse";
 import { Combobox, Transition } from "@headlessui/react";
 import { CheckIcon, ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import { useRouter } from "next/navigation";
+import { ROUTE_DETAIL } from "../constants";
+import { Stock } from "../customTypes";
 
-export type Stock = {
-  assetType: string;
-  delistingDate: string;
-  exchange: string;
-  ipoDate: string;
-  name: string;
-  status: string;
-  symbol: string;
-};
-
-export async function* streamingFetch(
-  input: RequestInfo | URL,
-  init?: RequestInit
-) {
+export async function* streamingFetch(input: RequestInfo | URL) {
   const response = await fetch(input);
   const reader =
     response?.body?.getReader() as ReadableStreamDefaultReader<Uint8Array>;
   const decoder = new TextDecoder("utf-8");
 
-  for (;;) {
+  while (true) {
     const { done, value } = await reader.read();
-    if (done) break;
+
+    if (done) {
+      break;
+    }
 
     try {
       yield decoder.decode(value);
-    } catch (e: any) {
-      console.warn(e.message);
+    } catch (error: any) {
+      console.warn(error.message);
     }
   }
 }
 
 export default function AutoComplete() {
   const [stocks, setStocks] = useState<Stock[]>([]);
-  const [selectedItem, setSelectedItem] = useState<Stock | null>(null);
   const [filteredItems, setFilteredItems] = useState<Stock[]>([]);
 
   const router = useRouter();
 
   useEffect(() => {
-    const asyncFetch = async () => {
-      const it = streamingFetch("/api");
-      for await (let value of it) {
+    const fetchData = async () => {
+      const stream = streamingFetch("/api");
+      for await (let value of stream) {
         try {
-          const result = Papa.parse(value, { header: true });
-          setStocks(result.data as Stock[]);
-          console.log(result.data);
-        } catch (e: any) {
-          console.warn(e.message);
+          const parsedData = Papa.parse(value, { header: true });
+          setStocks(parsedData.data as Stock[]);
+        } catch (error: any) {
+          console.warn(error.message);
         }
       }
     };
 
-    asyncFetch();
+    fetchData();
   }, []);
 
-  const handler = (input: string) => {
-    console.log("input", input);
-    const a = stocks
-      // input kivételkezelés
-      .filter(
-        // clean
-        (item: Stock) =>
-          item.symbol.toLowerCase().includes(input.toLowerCase()) ||
-          item.name?.toLowerCase().includes(input.toLowerCase())
-      )
-      .slice(0, 100);
+  const comboBoxOnChangeHandler = (input: string) => {
+    if (input === "") {
+      setFilteredItems([]);
+      return;
+    }
 
-    const filteredItems = a;
-    setFilteredItems(filteredItems);
-    console.log("stocks", stocks);
+    const filteredStocks = stocks
+      .filter((item) =>
+        [item.symbol, item.name].some((prop) =>
+          prop?.toLowerCase().includes(input.toLowerCase())
+        )
+      )
+      .slice(0, 100); // return only first 100 for faster rendering
+
+    setFilteredItems(filteredStocks);
   };
 
   const navigateToDetail = (symbol: string) => {
-    router.push(`/detail/${symbol}`);
+    router.push(`${ROUTE_DETAIL}/${symbol}`);
   };
 
   return (
     <div className="fixed top-16 w-72">
-      <Combobox value={selectedItem} onChange={setSelectedItem}>
+      <Combobox>
         <div className="relative mt-1">
           <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-teal-300 sm:text-sm">
             <Combobox.Input
               className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0"
-              // displayValue={(stock: Stock) => stock.name}
-              onChange={(event) => handler(event.target.value)}
+              onChange={(event) => comboBoxOnChangeHandler(event.target.value)}
             />
             <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
               <ChevronUpDownIcon

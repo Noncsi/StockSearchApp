@@ -5,6 +5,7 @@ import {
   QUERY_FUNCTION_TIME_SERIES,
   QUERY_INTERVAL,
 } from "../../constants";
+import { StockPrice, StockData } from "@/app/customTypes";
 
 interface FetchResponse {
   Information: string;
@@ -22,22 +23,6 @@ interface FetchResponse {
     };
   };
 }
-
-type StockData = {
-  symbol: string;
-  lastRefreshed: Date;
-  latestPrice: StockPrice;
-  stockPricesByTime: StockPrice[];
-};
-
-type StockPrice = {
-  dateTime: Date;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-};
 
 const mockFetchData = {
   Information: "",
@@ -66,16 +51,14 @@ export default async function Page({
 }: {
   params: { symbol: string };
 }) {
-  const res = await fetch(
-    `${API_BASE_URL}/query?function=${QUERY_FUNCTION_TIME_SERIES}&symbol=${symbol}&interval=${QUERY_INTERVAL}&apikey=${QUERY_API_KEY}`,
-    { cache: "force-cache" }
-  );
+  const url = `${API_BASE_URL}/query?function=${QUERY_FUNCTION_TIME_SERIES}&symbol=${symbol}&interval=${QUERY_INTERVAL}&apikey=${QUERY_API_KEY}`;
+  const response = await fetch(url, { cache: "force-cache" });
 
-  if (!res.ok) {
+  if (!response.ok) {
     throw new Error("Failed to fetch data.");
   }
 
-  let fetchResponse: FetchResponse = await res.json();
+  let fetchResponse: FetchResponse = await response.json();
 
   if (Object.keys(fetchResponse.Information.length)) {
     console.error("Failed to fetch data due to API request limitation.");
